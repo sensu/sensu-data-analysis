@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/robertkrimen/otto"
 	"github.com/sensu-community/sensu-plugin-sdk/sensu"
 	"github.com/sensu/sensu-go/types"
 )
@@ -51,4 +52,24 @@ func checkArgs(event *types.Event) (int, error) {
 func executeCheck(event *types.Event) (int, error) {
 	log.Println("executing check with --example", plugin.Example)
 	return sensu.CheckStateOK, nil
+}
+
+func processResult(data string, jscript string) {
+	fmt.Println("Hello, playground")
+	vm := otto.New()
+
+	vm.Set("data", data)
+
+	return_value, err := vm.Run(jscript)
+	if err != nil {
+		fmt.Printf("vm.Run error: %v", err)
+	} else {
+		if return_bool, err := return_value.ToBoolean(); err == nil {
+			if err != nil {
+				fmt.Printf("return_value.ToBoolean error: %v", err)
+			} else {
+				fmt.Printf("Return_bool: %v", return_bool)
+			}
+		}
+	}
 }
