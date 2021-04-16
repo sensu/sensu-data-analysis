@@ -54,22 +54,26 @@ func executeCheck(event *types.Event) (int, error) {
 	return sensu.CheckStateOK, nil
 }
 
-func processResult(data string, jscript string) {
-	fmt.Println("Hello, playground")
+func processResponse(data string, jscript string) (bool, error) {
 	vm := otto.New()
 
-	vm.Set("data", data)
-
+	vm.Set("input", data)
+	vm.Run(`
+          data = JSON.parse(input)
+        `)
 	return_value, err := vm.Run(jscript)
 	if err != nil {
-		fmt.Printf("vm.Run error: %v", err)
+		log.Printf("vm.Run error: %v", err)
+		return false, err
 	} else {
 		if return_bool, err := return_value.ToBoolean(); err == nil {
 			if err != nil {
-				fmt.Printf("return_value.ToBoolean error: %v", err)
+				log.Printf("return_value.ToBoolean error: %v\n", err)
+				return return_bool, err
 			} else {
-				fmt.Printf("Return_bool: %v", return_bool)
+				return return_bool, err
 			}
 		}
 	}
+	return false, fmt.Errorf("processResponse: unknown error")
 }
