@@ -7,6 +7,7 @@ import (
 	"github.com/robertkrimen/otto"
 	"github.com/sensu-community/sensu-plugin-sdk/sensu"
 	"github.com/sensu/sensu-go/types"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -73,7 +74,7 @@ func executeCheck(event *types.Event) (int, error) {
 	return sensu.CheckStateOK, nil
 }
 
-func doQuery(urlString string, data string, requestType string) ([]byte, error) {
+func doQuery(urlString string, requestType string, data io.Reader) ([]byte, error) {
 	client := http.DefaultClient
 	client.Transport = http.DefaultTransport
 	client.Timeout = time.Duration(plugin.Timeout) * time.Second
@@ -85,7 +86,7 @@ func doQuery(urlString string, data string, requestType string) ([]byte, error) 
 		client.Transport.(*http.Transport).TLSClientConfig = &tlsConfig
 	}
 
-	req, err := http.NewRequest(requestType, urlString, nil)
+	req, err := http.NewRequest(requestType, urlString, data)
 	if err != nil {
 		return nil, err
 	}
