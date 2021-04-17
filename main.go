@@ -19,9 +19,12 @@ import (
 // Config represents the check plugin config.
 type Config struct {
 	sensu.PluginConfig
-	Example string
 	Headers []string
 	Timeout int
+	Method  string
+	Data    string
+	Eval    string
+	Url     string
 }
 
 var (
@@ -36,16 +39,6 @@ var (
 
 	options = []*sensu.PluginConfigOption{
 		&sensu.PluginConfigOption{
-			Path:      "example",
-			Env:       "CHECK_EXAMPLE",
-			Argument:  "example",
-			Shorthand: "e",
-			Default:   "",
-			Usage:     "An example string configuration option",
-			Value:     &plugin.Example,
-		},
-
-		&sensu.PluginConfigOption{
 			Path:      "timeout",
 			Env:       "",
 			Argument:  "timeout",
@@ -53,6 +46,42 @@ var (
 			Default:   15,
 			Usage:     "Request timeout in seconds",
 			Value:     &plugin.Timeout,
+		},
+		&sensu.PluginConfigOption{
+			Path:      "url",
+			Env:       "",
+			Argument:  "url",
+			Shorthand: "u",
+			Default:   "",
+			Usage:     "url to use ex: https://httpbin.org/post",
+			Value:     &plugin.Url,
+		},
+		&sensu.PluginConfigOption{
+			Path:      "method",
+			Env:       "",
+			Argument:  "method",
+			Shorthand: "m",
+			Default:   "POST",
+			Usage:     "request type POST,GET",
+			Value:     &plugin.Method,
+		},
+		&sensu.PluginConfigOption{
+			Path:      "data",
+			Env:       "",
+			Argument:  "data",
+			Shorthand: "d",
+			Default:   "",
+			Usage:     "query request data: json",
+			Value:     &plugin.Data,
+		},
+		&sensu.PluginConfigOption{
+			Path:      "eval",
+			Env:       "",
+			Argument:  "eval",
+			Shorthand: "e",
+			Default:   "",
+			Usage:     `Javascript to evaluate, must return javascript boolean  Ex: data.test === "value"`,
+			Value:     &plugin.Eval,
 		},
 	}
 )
@@ -63,14 +92,32 @@ func main() {
 }
 
 func checkArgs(event *types.Event) (int, error) {
-	if len(plugin.Example) == 0 {
-		return sensu.CheckStateWarning, fmt.Errorf("--example or CHECK_EXAMPLE environment variable is required")
+	if len(plugin.Url) == 0 {
+		return sensu.CheckStateWarning, fmt.Errorf("--url is required")
 	}
 	return sensu.CheckStateOK, nil
 }
 
 func executeCheck(event *types.Event) (int, error) {
-	log.Println("executing check with --example", plugin.Example)
+	log.Printf("Method: %v\n", plugin.Method)
+	log.Printf("Url: %v\n", plugin.Url)
+	log.Printf("Data: %v\n", plugin.Data)
+	log.Printf("Eval: %v\n", plugin.Eval)
+	response, err := doQuery(plugin.Url, plugin.Method, strings.NewReader(plugin.Data))
+	log.Printf("http response: %v\n", string(response))
+	if err != nil {
+		log.Printf("Error attempting query http request: %v", err)
+		return sensu.CheckStateCritical, err
+	}
+	result, err := processResponse(string(response), plugin.Eval)
+	log.Printf("eval result: %v\n", result)
+	if err != nil {
+		log.Printf("Error attempting to evaluate http response: %v", err)
+		return sensu.CheckStateCritical, err
+	}
+	if result != true {
+		return sensu.CheckStateWarning, nil
+	}
 	return sensu.CheckStateOK, nil
 }
 
