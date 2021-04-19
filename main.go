@@ -91,7 +91,7 @@ var (
 			Shorthand: "q",
 			Default:   "",
 			Usage:     `JSON query`,
-			Value:     &plugin.Eval,
+			Value:     &plugin.Query,
 		},
 	}
 )
