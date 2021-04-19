@@ -22,10 +22,11 @@ type Config struct {
 	//low level arguments for any http request:
 	Timeout int
 	Headers []string
-	Method  string
+	Request string
 	Url     string
 	Eval    string
 	Query   string
+	Type    string
 }
 
 var (
@@ -58,13 +59,13 @@ var (
 			Value:     &plugin.Url,
 		},
 		&sensu.PluginConfigOption{
-			Path:      "method",
+			Path:      "request",
 			Env:       "",
-			Argument:  "method",
-			Shorthand: "M",
-			Default:   "POST",
-			Usage:     "request type POST,GET",
-			Value:     &plugin.Method,
+			Argument:  "request",
+			Shorthand: "r",
+			Default:   "GET",
+			Usage:     "Optional. Default to get, if --query is used changes to post",
+			Value:     &plugin.Request,
 		},
 		{
 			Path:      "header",
@@ -90,7 +91,16 @@ var (
 			Argument:  "query",
 			Shorthand: "q",
 			Default:   "",
-			Usage:     `JSON query`,
+			Usage:     `query data`,
+			Value:     &plugin.Query,
+		},
+		&sensu.PluginConfigOption{
+			Path:      "type",
+			Env:       "",
+			Argument:  "type",
+			Shorthand: "t",
+			Default:   "",
+			Usage:     `Optional (no default is set). Sets --request, --headers, --port, --path, and --params based on the backend type (e.g. prometheus, elasticsearch, or influxdb). Setting --type=prometheus`,
 			Value:     &plugin.Query,
 		},
 	}
@@ -109,12 +119,12 @@ func checkArgs(event *types.Event) (int, error) {
 }
 
 func executeCheck(event *types.Event) (int, error) {
-	log.Printf("Method: %v\n", plugin.Method)
+	log.Printf("Request Method: %v\n", plugin.Request)
 	log.Printf("Url: %v\n", plugin.Url)
 	log.Printf("Headers: %v\n", plugin.Headers)
 	log.Printf("Query: %v\n", plugin.Query)
 	log.Printf("Eval: %v\n", plugin.Eval)
-	response, err := doQuery(plugin.Url, plugin.Method, strings.NewReader(plugin.Query))
+	response, err := doQuery(plugin.Url, plugin.Request, strings.NewReader(plugin.Query))
 	log.Printf("http response: %v\n", string(response))
 	if err != nil {
 		log.Printf("Error attempting query http request: %v", err)
