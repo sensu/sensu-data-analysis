@@ -111,6 +111,7 @@ func checkArgs(event *types.Event) (int, error) {
 func executeCheck(event *types.Event) (int, error) {
 	log.Printf("Method: %v\n", plugin.Method)
 	log.Printf("Url: %v\n", plugin.Url)
+	log.Printf("Headers: %v\n", plugin.Headers)
 	log.Printf("Query: %v\n", plugin.Query)
 	log.Printf("Eval: %v\n", plugin.Eval)
 	response, err := doQuery(plugin.Url, plugin.Method, strings.NewReader(plugin.Query))
