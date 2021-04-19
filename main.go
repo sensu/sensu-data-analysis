@@ -19,12 +19,13 @@ import (
 // Config represents the check plugin config.
 type Config struct {
 	sensu.PluginConfig
-	Headers []string
+	//low level arguments for any http request:
 	Timeout int
+	Headers []string
 	Method  string
-	Data    string
-	Eval    string
 	Url     string
+	Eval    string
+	Query   string
 }
 
 var (
@@ -51,7 +52,7 @@ var (
 			Path:      "url",
 			Env:       "",
 			Argument:  "url",
-			Shorthand: "u",
+			Shorthand: "U",
 			Default:   "",
 			Usage:     "url to use ex: https://httpbin.org/post",
 			Value:     &plugin.Url,
@@ -60,19 +61,19 @@ var (
 			Path:      "method",
 			Env:       "",
 			Argument:  "method",
-			Shorthand: "m",
+			Shorthand: "M",
 			Default:   "POST",
 			Usage:     "request type POST,GET",
 			Value:     &plugin.Method,
 		},
-		&sensu.PluginConfigOption{
-			Path:      "data",
+		{
+			Path:      "header",
 			Env:       "",
-			Argument:  "data",
-			Shorthand: "d",
-			Default:   "",
-			Usage:     "query request data: json",
-			Value:     &plugin.Data,
+			Argument:  "header",
+			Shorthand: "H",
+			Default:   []string{},
+			Usage:     "Additional header(s) to send in check request",
+			Value:     &plugin.Headers,
 		},
 		&sensu.PluginConfigOption{
 			Path:      "eval",
@@ -81,6 +82,15 @@ var (
 			Shorthand: "e",
 			Default:   "",
 			Usage:     `Javascript to evaluate, must return javascript boolean  Ex: data.test === "value"`,
+			Value:     &plugin.Eval,
+		},
+		&sensu.PluginConfigOption{
+			Path:      "query",
+			Env:       "",
+			Argument:  "query",
+			Shorthand: "q",
+			Default:   "",
+			Usage:     `JSON query`,
 			Value:     &plugin.Eval,
 		},
 	}
@@ -101,9 +111,9 @@ func checkArgs(event *types.Event) (int, error) {
 func executeCheck(event *types.Event) (int, error) {
 	log.Printf("Method: %v\n", plugin.Method)
 	log.Printf("Url: %v\n", plugin.Url)
-	log.Printf("Data: %v\n", plugin.Data)
+	log.Printf("Query: %v\n", plugin.Query)
 	log.Printf("Eval: %v\n", plugin.Eval)
-	response, err := doQuery(plugin.Url, plugin.Method, strings.NewReader(plugin.Data))
+	response, err := doQuery(plugin.Url, plugin.Method, strings.NewReader(plugin.Query))
 	log.Printf("http response: %v\n", string(response))
 	if err != nil {
 		log.Printf("Error attempting query http request: %v", err)
