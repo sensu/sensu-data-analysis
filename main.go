@@ -21,21 +21,25 @@ import (
 type Config struct {
 	sensu.PluginConfig
 	//low level arguments for any http request:
-	Timeout        int
-	Headers        []string
-	Request        string
-	Url            string
-	EvalStatements []string
-	EvalStatus     int
-	Query          string
-	Type           string
-	Verbose        bool
-	DryRun         bool
-	Scheme         string
-	Host           string
-	Port           int
-	ApiPath        string
-	ApiParams      string
+	Timeout            int
+	Headers            []string
+	Request            string
+	Url                string
+	EvalStatements     []string
+	EvalStatus         int
+	Query              string
+	Type               string
+	Verbose            bool
+	DryRun             bool
+	Scheme             string
+	Host               string
+	Port               int
+	ApiPath            string
+	ApiParams          string
+	TrustedCAFile      string
+	InsecureSkipVerify bool
+	MTLSKeyFile        string
+	MTLSCertFile       string
 }
 
 type ServiceType struct {
@@ -189,6 +193,30 @@ var (
 			Argument: "params",
 			Usage:    `request params`,
 			Value:    &plugin.ApiParams,
+		},
+		{
+			Argument: "insecure-skip-verify",
+			Default:  false,
+			Usage:    "Skip TLS certificate verification (not recommended!)",
+			Value:    &plugin.InsecureSkipVerify,
+		},
+		{
+			Argument: "trusted-ca-file",
+			Default:  "",
+			Usage:    "TLS CA certificate bundle in PEM format",
+			Value:    &plugin.TrustedCAFile,
+		},
+		{
+			Argument: "mtls-key-file",
+			Default:  "",
+			Usage:    "Key file for mutual TLS auth in PEM format",
+			Value:    &plugin.MTLSKeyFile,
+		},
+		{
+			Argument: "mtls-cert-file",
+			Default:  "",
+			Usage:    "Certificate file for mutual TLS auth in PEM format",
+			Value:    &plugin.MTLSCertFile,
 		},
 	}
 )
