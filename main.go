@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/robertkrimen/otto"
 	"github.com/sensu-community/sensu-plugin-sdk/sensu"
@@ -29,6 +30,7 @@ type Config struct {
 	Query          string
 	Type           string
 	Verbose        bool
+	DryRun         bool
 	Scheme         string
 	Host           string
 	Port           int
@@ -152,6 +154,13 @@ var (
 			Value:     &plugin.Verbose,
 		},
 		&sensu.PluginConfigOption{
+			Argument:  "dryrun",
+			Shorthand: "n",
+			Default:   false,
+			Usage:     `Do not execute query, just report configuration. Useful for diagnostic testing`,
+			Value:     &plugin.DryRun,
+		},
+		&sensu.PluginConfigOption{
 			Path:     "scheme",
 			Argument: "scheme",
 			Usage:    `service scheme. http or https`,
@@ -214,22 +223,44 @@ func serviceDefaults(service ServiceType) {
 	}
 }
 
+func finalUrl() (string, error) {
+	newUrl := plugin.Url
+	if len(plugin.Type) > 0 {
+		if service, found := supportedServices[plugin.Type]; found {
+			if plugin.Verbose {
+				log.Printf("Found Supported Service Type: %v\n", plugin.Type)
+			}
+			serviceDefaults(service)
+		} else {
+			if plugin.Verbose {
+				log.Printf("Unknown Service Type: %v\n", plugin.Type)
+			}
+		}
+		if len(newUrl) == 0 && len(plugin.Scheme) > 0 && len(plugin.Host) > 0 && plugin.Port > 0 {
+			newUrl = fmt.Sprintf("%v://%v:%v/", plugin.Scheme, plugin.Host, plugin.Port)
+			if len(plugin.ApiPath) > 0 {
+				newUrl = fmt.Sprintf("%v%v", newUrl, plugin.ApiPath)
+			}
+			if len(plugin.ApiParams) > 0 {
+				newUrl = fmt.Sprintf("%v?%v", newUrl, plugin.ApiParams)
+			}
+		}
+	}
+	if len(newUrl) == 0 {
+		return newUrl, errors.New("final URL is empty")
+	}
+	_, err := url.Parse(newUrl)
+	return newUrl, err
+
+}
+
 func checkArgs(event *types.Event) (int, error) {
-	if service, found := supportedServices[plugin.Type]; found {
-		if plugin.Verbose {
-			log.Printf("Found Service Type: %v\n", plugin.Type)
-		}
-		serviceDefaults(service)
+	if plugin.DryRun {
+		plugin.Verbose = true
 	}
-	if len(plugin.Url) == 0 && len(plugin.Scheme) > 0 && len(plugin.Host) > 0 && plugin.Port > 0 {
-		plugin.Url = fmt.Sprintf("%v://%v:%v/", plugin.Scheme, plugin.Host, plugin.Port)
-		if len(plugin.ApiPath) > 0 {
-			plugin.Url = fmt.Sprintf("%v%v", plugin.Url, plugin.ApiPath)
-		}
-		if len(plugin.ApiParams) > 0 {
-			plugin.Url = fmt.Sprintf("%v?%v", plugin.Url, plugin.ApiParams)
-		}
-	}
+	newUrl, err := finalUrl()
+	plugin.Url = newUrl
+
 	if len(plugin.Request) == 0 {
 		plugin.Request = `GET`
 	}
@@ -246,20 +277,30 @@ func checkArgs(event *types.Event) (int, error) {
 			log.Printf(" %v: %v\n", name, service)
 		}
 	}
-	if len(plugin.Url) == 0 {
-		return sensu.CheckStateWarning, fmt.Errorf("--url is required")
-	}
-	_, err := url.Parse(plugin.Url)
+
 	if err != nil {
-		return sensu.CheckStateWarning, err
+		if plugin.DryRun {
+			log.Printf("Warning: unexpected error associated with Url: %v", err)
+		} else {
+			return sensu.CheckStateWarning, err
+		}
 	}
+
 	if plugin.EvalStatus < 1 {
-		return sensu.CheckStateWarning, fmt.Errorf("--eval-status >= 1 is required")
+		if plugin.DryRun {
+			log.Printf("Warning: -eval-status >= 1 is required")
+		} else {
+			return sensu.CheckStateWarning, fmt.Errorf("--eval-status >= 1 is required")
+		}
 	}
 	return sensu.CheckStateOK, nil
 }
 
 func executeCheck(event *types.Event) (int, error) {
+	if plugin.DryRun {
+		log.Printf(`Dryrun enabled. Query operation aborted`)
+		return sensu.CheckStateOK, nil
+	}
 	response, err := doQuery(plugin.Url, plugin.Request, strings.NewReader(plugin.Query))
 	log.Printf("http response: %v\n", string(response))
 	if err != nil {
@@ -274,11 +315,12 @@ func executeCheck(event *types.Event) (int, error) {
 				log.Printf("Error attempting to evaluate http response: %v", err)
 				return sensu.CheckStateCritical, err
 			}
-			if result != true {
+			if !result {
 				return sensu.CheckStateWarning, nil
 			}
 		}
 	} else {
+		log.Printf("No eval statements present\nReturning query result:\n%v", response)
 		//Do something if there are no eval statement
 	}
 	return sensu.CheckStateOK, nil
@@ -337,10 +379,18 @@ func doQuery(urlString string, requestType string, data io.Reader) ([]byte, erro
 func processResponse(data string, jscript string) (bool, error) {
 	vm := otto.New()
 
-	vm.Set("input", data)
-	vm.Run(`
+	err := vm.Set("input", data)
+	if err != nil {
+		log.Printf("vm.Set error: %v", err)
+		return false, err
+	}
+	_, err = vm.Run(`
           result = JSON.parse(input)
         `)
+	if err != nil {
+		log.Printf("vm.Run error: %v", err)
+		return false, err
+	}
 	return_value, err := vm.Run(jscript)
 	if err != nil {
 		log.Printf("vm.Run error: %v", err)

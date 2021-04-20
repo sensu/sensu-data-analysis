@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/sensu-community/sensu-plugin-sdk/sensu"
+	//"log"
 	"strings"
 	"testing"
 )
@@ -8,6 +10,93 @@ import (
 func TestMain(t *testing.T) {
 }
 
+func TestServiceUrl(t *testing.T) {
+	tests := []struct {
+		service_type         string
+		expected_default_url string
+		expect_error         bool
+		override_url         string
+		override_host        string
+		host_override_url    string
+	}{
+		{
+			service_type:         `prometheus`,
+			expected_default_url: `http://localhost:9090/api/v1/query?query=up`,
+			expect_error:         false,
+			override_url:         `https://example.com:80/path/to/use?param1=val1,param2=val2`,
+			override_host:        `other.host.com`,
+			host_override_url:    `http://other.host.com:9090/api/v1/query?query=up`,
+		},
+		{
+			service_type:         `unknown service`,
+			expected_default_url: `http://localhost:9090/api/v1/query?query=up`,
+			expect_error:         true,
+			override_url:         `https://example.com:80/path/to/use?param1=val1,param2=val2`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.service_type, func(t *testing.T) {
+			plugin = Config{
+				PluginConfig: sensu.PluginConfig{
+					Name:  "test",
+					Short: "test",
+				},
+			}
+			//First test that the service default is what is expected
+			plugin.Type = tt.service_type
+			plugin.Verbose = true
+			url, err := finalUrl()
+			//log.Printf("finalUrl() expected_default_url: %v url: %v  err: %v\n", tt.expected_default_url, url, err)
+			if tt.expect_error {
+				if err == nil {
+					t.Errorf("finalUrl() Expected return err but got: %v\n", err)
+					return
+				}
+			} else {
+				if err != nil {
+					t.Errorf("finalUrl() Unexpected return err: %v\n", err)
+					return
+				} else {
+					if strings.Compare(tt.expected_default_url, url) != 0 {
+						t.Errorf("finalUrl() Unexpected return url: %v expected_default_url: %v\n", url, tt.expected_default_url)
+						return
+					}
+				}
+			}
+			if len(tt.override_url) > 0 {
+				//test that explicit url override works as expected
+				plugin.Url = tt.override_url
+				url, err = finalUrl()
+				if err != nil {
+					t.Errorf("finalUrl() Unexpected return err: %v\n", err)
+					return
+				} else {
+					if strings.Compare(tt.override_url, url) != 0 {
+						t.Errorf("finalUrl() Unexpected return url: %v override_url: %v\n", url, tt.override_url)
+						return
+					}
+				}
+			}
+			plugin.Url = ""
+			if len(tt.override_host) > 0 {
+				//test that explicit host override works as expected
+				plugin.Host = tt.override_host
+				url, err = finalUrl()
+				if err != nil {
+					t.Errorf("finalUrl() Unexpected return err: %v\n", err)
+					return
+				} else {
+					if strings.Compare(tt.host_override_url, url) != 0 {
+						t.Errorf("finalUrl() Unexpected return url: %v override_url: %v\n", url, tt.host_override_url)
+						return
+					}
+				}
+			}
+
+		})
+	}
+
+}
 func TestQuery(t *testing.T) {
 	plugin.Headers = append(plugin.Headers,
 		`First-Header: header value`,
