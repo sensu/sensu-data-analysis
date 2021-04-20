@@ -20,13 +20,14 @@ import (
 type Config struct {
 	sensu.PluginConfig
 	//low level arguments for any http request:
-	Timeout int
-	Headers []string
-	Request string
-	Url     string
-	Eval    string
-	Query   string
-	Type    string
+	Timeout        int
+	Headers        []string
+	Request        string
+	Url            string
+	EvalStatements []string
+	EvalStatus     int
+	Query          string
+	Type           string
 }
 
 var (
@@ -48,6 +49,14 @@ var (
 			Default:   15,
 			Usage:     "Request timeout in seconds",
 			Value:     &plugin.Timeout,
+		},
+		&sensu.PluginConfigOption{
+			Path:     "eval_status",
+			Env:      "",
+			Argument: "eval-status",
+			Default:  1,
+			Usage:    "Return status if any eval statement condition is not met (eg. a metric exceeds a threshold). Must be >= 1.",
+			Value:    &plugin.EvalStatus,
 		},
 		&sensu.PluginConfigOption{
 			Path:      "url",
@@ -81,9 +90,10 @@ var (
 			Env:       "",
 			Argument:  "eval",
 			Shorthand: "e",
-			Default:   "",
-			Usage:     `Javascript to evaluate, must return javascript boolean  Ex: data.test === "value"`,
-			Value:     &plugin.Eval,
+			Default:   []string{},
+			Usage: `Optional. Array of Javascript expressions that must return a bool. 
+			The Javascript experssion is evaluated in a "sandbox" and is provided a single variable called 'result' that contains the complete query response in JSON format.  If no eval is required, the check will return the query response as output. Ex: result.test === "value"`,
+			Value: &plugin.EvalStatements,
 		},
 		&sensu.PluginConfigOption{
 			Path:      "query",
@@ -115,6 +125,9 @@ func checkArgs(event *types.Event) (int, error) {
 	if len(plugin.Url) == 0 {
 		return sensu.CheckStateWarning, fmt.Errorf("--url is required")
 	}
+	if plugin.EvalStatus < 1 {
+		return sensu.CheckStateWarning, fmt.Errorf("--eval-status >= 1 is required")
+	}
 	return sensu.CheckStateOK, nil
 }
 
@@ -123,21 +136,27 @@ func executeCheck(event *types.Event) (int, error) {
 	log.Printf("Url: %v\n", plugin.Url)
 	log.Printf("Headers: %v\n", plugin.Headers)
 	log.Printf("Query: %v\n", plugin.Query)
-	log.Printf("Eval: %v\n", plugin.Eval)
+	log.Printf("Eval Statements: %v\n", plugin.EvalStatements)
 	response, err := doQuery(plugin.Url, plugin.Request, strings.NewReader(plugin.Query))
 	log.Printf("http response: %v\n", string(response))
 	if err != nil {
 		log.Printf("Error attempting query http request: %v", err)
 		return sensu.CheckStateCritical, err
 	}
-	result, err := processResponse(string(response), plugin.Eval)
-	log.Printf("eval result: %v\n", result)
-	if err != nil {
-		log.Printf("Error attempting to evaluate http response: %v", err)
-		return sensu.CheckStateCritical, err
-	}
-	if result != true {
-		return sensu.CheckStateWarning, nil
+	if len(plugin.EvalStatements) > 0 {
+		for _, eval := range plugin.EvalStatements {
+			result, err := processResponse(string(response), eval)
+			log.Printf("eval result: %v\n", result)
+			if err != nil {
+				log.Printf("Error attempting to evaluate http response: %v", err)
+				return sensu.CheckStateCritical, err
+			}
+			if result != true {
+				return sensu.CheckStateWarning, nil
+			}
+		}
+	} else {
+		//Do something if there are no eval statement
 	}
 	return sensu.CheckStateOK, nil
 }
@@ -197,7 +216,7 @@ func processResponse(data string, jscript string) (bool, error) {
 
 	vm.Set("input", data)
 	vm.Run(`
-          data = JSON.parse(input)
+          result = JSON.parse(input)
         `)
 	return_value, err := vm.Run(jscript)
 	if err != nil {

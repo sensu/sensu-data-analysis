@@ -37,7 +37,7 @@ func TestQuery(t *testing.T) {
 			expect_query_error:     false,
 			expect_process_error:   false,
 			expected_process_value: true,
-			jscript:                `data.json.test === "value"`,
+			jscript:                `result.json.test === "value"`,
 		},
 		{
 			name:                   `POST "https://httpbin.org/post"`,
@@ -47,7 +47,7 @@ func TestQuery(t *testing.T) {
 			expect_query_error:     false,
 			expect_process_error:   false,
 			expected_process_value: false,
-			jscript:                `data.json.test === "bad value"`,
+			jscript:                `result.json.test === "bad value"`,
 		},
 	}
 	for _, tt := range tests {
@@ -84,14 +84,14 @@ func TestProcess(t *testing.T) {
 		{
 			name:           "I could have bought a Lambo",
 			json_data:      `{"name":"Frank", "car":"Subaru CrossTrek"}`,
-			jscript:        `data.name === "Frank"`,
+			jscript:        `result.name === "Frank"`,
 			expect_error:   false,
 			expected_value: true,
 		},
 		{
 			name:           "bad object path",
 			json_data:      `{"name":"Frank", "car":"Subaru CrossTrek"}`,
-			jscript:        `data.undefined === "Frank"`,
+			jscript:        `result.undefined === "Frank"`,
 			expect_error:   true,
 			expected_value: false,
 		},
