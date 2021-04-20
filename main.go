@@ -51,7 +51,7 @@ var (
 			Value:     &plugin.Timeout,
 		},
 		&sensu.PluginConfigOption{
-			Path:     "eval_status",
+			Path:     "eval-status",
 			Env:      "",
 			Argument: "eval-status",
 			Default:  1,
@@ -77,7 +77,7 @@ var (
 			Value:     &plugin.Request,
 		},
 		{
-			Path:      "header",
+			Path:      "headers",
 			Env:       "",
 			Argument:  "header",
 			Shorthand: "H",
@@ -86,9 +86,9 @@ var (
 			Value:     &plugin.Headers,
 		},
 		&sensu.PluginConfigOption{
-			Path:      "eval",
+			Path:      "eval-statements",
 			Env:       "",
-			Argument:  "eval",
+			Argument:  "eval-statement",
 			Shorthand: "e",
 			Default:   []string{},
 			Usage: `Optional. Array of Javascript expressions that must return a bool. 
@@ -110,7 +110,7 @@ var (
 			Argument:  "type",
 			Shorthand: "t",
 			Default:   "",
-			Usage:     `Optional (no default is set). Sets --request, --headers, --port, --path, and --params based on the backend type (e.g. prometheus, elasticsearch, or influxdb). Setting --type=prometheus`,
+			Usage:     `Optional (no default is set). Sets --request, --header, --port, --path, and --params based on the backend type (e.g. prometheus, elasticsearch, or influxdb). Setting --type=prometheus`,
 			Value:     &plugin.Query,
 		},
 	}

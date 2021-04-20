@@ -9,6 +9,10 @@ func TestMain(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
+	plugin.Headers = append(plugin.Headers,
+		`First-Header: header value`,
+		`Second-Header: second value`,
+	)
 	tests := []struct {
 		name                   string
 		url                    string
@@ -57,7 +61,18 @@ func TestQuery(t *testing.T) {
 				t.Errorf("doQuery() url: %v, body: %v err: %v\n", tt.url, string(result), err)
 				return
 			}
-			presult, err := processResponse(string(result), tt.jscript)
+			presult, err := processResponse(string(result), `result.headers["First-Header"] === "header value" && result.headers["Second-Header"] === "second value"`)
+			if err != nil {
+				t.Errorf("processResponse() json_data: %v, jscript: %v, err: %v\n", string(result), tt.jscript, err)
+				t.Errorf("doQuery() url: %v, body: %v err: %v\n", tt.url, string(result), err)
+				return
+			}
+			if presult != true {
+				t.Errorf("Unexpeted header value json_data: %v, err: %v\n", string(result), err)
+				t.Errorf("doQuery() url: %v, body: %v err: %v\n", tt.url, string(result), err)
+				return
+			}
+			presult, err = processResponse(string(result), tt.jscript)
 			if !tt.expect_process_error && err != nil {
 				t.Errorf("processResponse() json_data: %v, jscript: %v, err: %v\n", string(result), tt.jscript, err)
 				t.Errorf("doQuery() url: %v, body: %v err: %v\n", tt.url, string(result), err)
