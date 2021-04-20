@@ -28,11 +28,42 @@ type Config struct {
 	EvalStatus     int
 	Query          string
 	Type           string
+	Verbose        bool
+	Scheme         string
+	Host           string
+	Port           int
+	ApiPath        string
+	ApiParams      string
+}
+
+type ServiceType struct {
+	Scheme    string
+	Host      string
+	Port      int
+	ApiPath   string
+	ApiParams string
+	Request   string
+	Headers   []string
 }
 
 var (
 	tlsConfig tls.Config
-	plugin    = Config{
+	//Map of supported services and their default request values
+	supportedServices = map[string]ServiceType{
+		"prometheus": ServiceType{
+			Scheme:    "http",
+			Host:      "localhost",
+			Port:      9090,
+			ApiPath:   "api/v1/query",
+			ApiParams: "query=up",
+			Request:   "POST",
+			Headers: []string{
+				"Content-Type: application/x-www-form-urlencoded",
+			},
+		},
+	}
+	//
+	plugin = Config{
 		PluginConfig: sensu.PluginConfig{
 			Name:     "sensu-metric-analysis",
 			Short:    "Check that lets you evaluate JSON returned from REST API endpoints using Javascript conditional expressions",
@@ -72,7 +103,7 @@ var (
 			Env:       "",
 			Argument:  "request",
 			Shorthand: "r",
-			Default:   "GET",
+			Default:   "",
 			Usage:     "Optional. Default to get, if --query is used changes to post",
 			Value:     &plugin.Request,
 		},
@@ -111,7 +142,44 @@ var (
 			Shorthand: "t",
 			Default:   "",
 			Usage:     `Optional (no default is set). Sets --request, --header, --port, --path, and --params based on the backend type (e.g. prometheus, elasticsearch, or influxdb). Setting --type=prometheus`,
-			Value:     &plugin.Query,
+			Value:     &plugin.Type,
+		},
+		&sensu.PluginConfigOption{
+			Argument:  "verbose",
+			Shorthand: "v",
+			Default:   false,
+			Usage:     `Enable verbose output`,
+			Value:     &plugin.Verbose,
+		},
+		&sensu.PluginConfigOption{
+			Path:     "scheme",
+			Argument: "scheme",
+			Usage:    `service scheme. http or https`,
+			Value:    &plugin.Scheme,
+		},
+		&sensu.PluginConfigOption{
+			Path:     "host",
+			Argument: "host",
+			Usage:    `service host`,
+			Value:    &plugin.Host,
+		},
+		&sensu.PluginConfigOption{
+			Path:     "port",
+			Argument: "port",
+			Usage:    `service port`,
+			Value:    &plugin.Port,
+		},
+		&sensu.PluginConfigOption{
+			Path:     "path",
+			Argument: "path",
+			Usage:    `service endpoint path`,
+			Value:    &plugin.ApiPath,
+		},
+		&sensu.PluginConfigOption{
+			Path:     "params",
+			Argument: "params",
+			Usage:    `request params`,
+			Value:    &plugin.ApiParams,
 		},
 	}
 )
@@ -121,9 +189,69 @@ func main() {
 	check.Execute()
 }
 
+func serviceDefaults(service ServiceType) {
+	if plugin.Verbose {
+		log.Printf("Setting Service Defaults\n")
+	}
+	plugin.Headers = append(plugin.Headers, service.Headers...)
+	if len(plugin.Request) == 0 {
+		plugin.Request = service.Request
+	}
+	if len(plugin.Scheme) == 0 {
+		plugin.Scheme = service.Scheme
+	}
+	if len(plugin.Host) == 0 {
+		plugin.Host = service.Host
+	}
+	if plugin.Port == 0 {
+		plugin.Port = service.Port
+	}
+	if len(plugin.ApiPath) == 0 {
+		plugin.ApiPath = service.ApiPath
+	}
+	if len(plugin.ApiParams) == 0 {
+		plugin.ApiParams = service.ApiParams
+	}
+}
+
 func checkArgs(event *types.Event) (int, error) {
+	if service, found := supportedServices[plugin.Type]; found {
+		if plugin.Verbose {
+			log.Printf("Found Service Type: %v\n", plugin.Type)
+		}
+		serviceDefaults(service)
+	}
+	if len(plugin.Url) == 0 && len(plugin.Scheme) > 0 && len(plugin.Host) > 0 && plugin.Port > 0 {
+		plugin.Url = fmt.Sprintf("%v://%v:%v/", plugin.Scheme, plugin.Host, plugin.Port)
+		if len(plugin.ApiPath) > 0 {
+			plugin.Url = fmt.Sprintf("%v%v", plugin.Url, plugin.ApiPath)
+		}
+		if len(plugin.ApiParams) > 0 {
+			plugin.Url = fmt.Sprintf("%v?%v", plugin.Url, plugin.ApiParams)
+		}
+	}
+	if len(plugin.Request) == 0 {
+		plugin.Request = `GET`
+	}
+
+	if plugin.Verbose {
+		log.Printf("Type: %v\n", plugin.Type)
+		log.Printf("Request Method: %v\n", plugin.Request)
+		log.Printf("Url: %v\n", plugin.Url)
+		log.Printf("Headers: %v\n", plugin.Headers)
+		log.Printf("Query: %v\n", plugin.Query)
+		log.Printf("Eval Statements: %v\n", plugin.EvalStatements)
+		log.Printf("Supporterd Services:\n")
+		for name, service := range supportedServices {
+			log.Printf(" %v: %v\n", name, service)
+		}
+	}
 	if len(plugin.Url) == 0 {
 		return sensu.CheckStateWarning, fmt.Errorf("--url is required")
+	}
+	_, err := url.Parse(plugin.Url)
+	if err != nil {
+		return sensu.CheckStateWarning, err
 	}
 	if plugin.EvalStatus < 1 {
 		return sensu.CheckStateWarning, fmt.Errorf("--eval-status >= 1 is required")
@@ -132,11 +260,6 @@ func checkArgs(event *types.Event) (int, error) {
 }
 
 func executeCheck(event *types.Event) (int, error) {
-	log.Printf("Request Method: %v\n", plugin.Request)
-	log.Printf("Url: %v\n", plugin.Url)
-	log.Printf("Headers: %v\n", plugin.Headers)
-	log.Printf("Query: %v\n", plugin.Query)
-	log.Printf("Eval Statements: %v\n", plugin.EvalStatements)
 	response, err := doQuery(plugin.Url, plugin.Request, strings.NewReader(plugin.Query))
 	log.Printf("http response: %v\n", string(response))
 	if err != nil {
