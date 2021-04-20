@@ -10,6 +10,42 @@ import (
 func TestMain(t *testing.T) {
 }
 
+func TestTLSArguments(t *testing.T) {
+	plugin = Config{
+		PluginConfig: sensu.PluginConfig{
+			Name:  "test",
+			Short: "test",
+		},
+	}
+	plugin.Url = "https://localhost:80/"
+	plugin.EvalStatus = 1
+	plugin.TrustedCAFile = "./test/missing-ca.pem"
+	t.Run("missing CA File", func(t *testing.T) {
+		_, err := checkArgs(nil)
+		if err == nil {
+			t.Errorf("Missing CA File: no err: %v\n", err)
+			return
+		}
+	})
+	plugin.TrustedCAFile = "./test/bad-ca.pem"
+	t.Run("bad CA File", func(t *testing.T) {
+		_, err := checkArgs(nil)
+		if err == nil {
+			t.Errorf("Bad CA File: no err: %v\n", err)
+			return
+		}
+	})
+	plugin.TrustedCAFile = "./test/ca.pem"
+	t.Run("valid CA File", func(t *testing.T) {
+		_, err := checkArgs(nil)
+		if err != nil {
+			t.Errorf("Valid CA File: unexpected error: %v\n", err)
+			return
+		}
+	})
+
+}
+
 func TestServiceUrl(t *testing.T) {
 	tests := []struct {
 		service_type         string
