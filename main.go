@@ -315,11 +315,12 @@ func executeCheck(event *types.Event) (int, error) {
 				log.Printf("Error attempting to evaluate http response: %v", err)
 				return sensu.CheckStateCritical, err
 			}
-			if result != true {
+			if !result {
 				return sensu.CheckStateWarning, nil
 			}
 		}
 	} else {
+		log.Printf("No eval statements present\nReturning query result:\n%v", response)
 		//Do something if there are no eval statement
 	}
 	return sensu.CheckStateOK, nil
@@ -383,9 +384,13 @@ func processResponse(data string, jscript string) (bool, error) {
 		log.Printf("vm.Set error: %v", err)
 		return false, err
 	}
-	err = vm.Run(`
+	_, err = vm.Run(`
           result = JSON.parse(input)
         `)
+	if err != nil {
+		log.Printf("vm.Run error: %v", err)
+		return false, err
+	}
 	return_value, err := vm.Run(jscript)
 	if err != nil {
 		log.Printf("vm.Run error: %v", err)
