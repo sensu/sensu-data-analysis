@@ -15,27 +15,33 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	corev2 "github.com/sensu/sensu-go/api/core/v2"
 )
 
 // Config represents the check plugin config.
 type Config struct {
 	sensu.PluginConfig
 	//low level arguments for any http request:
-	Timeout        int
-	Headers        []string
-	Request        string
-	Url            string
-	EvalStatements []string
-	EvalStatus     int
-	Query          string
-	Type           string
-	Verbose        bool
-	DryRun         bool
-	Scheme         string
-	Host           string
-	Port           int
-	ApiPath        string
-	ApiParams      string
+	Timeout            int
+	Headers            []string
+	Request            string
+	Url                string
+	EvalStatements     []string
+	EvalStatus         int
+	Query              string
+	Type               string
+	Verbose            bool
+	DryRun             bool
+	Scheme             string
+	Host               string
+	Port               int
+	ApiPath            string
+	ApiParams          string
+	TrustedCAFile      string
+	InsecureSkipVerify bool
+	MTLSKeyFile        string
+	MTLSCertFile       string
 }
 
 type ServiceType struct {
@@ -190,6 +196,30 @@ var (
 			Usage:    `request params`,
 			Value:    &plugin.ApiParams,
 		},
+		{
+			Argument: "insecure-skip-verify",
+			Default:  false,
+			Usage:    "Skip TLS certificate verification (not recommended!)",
+			Value:    &plugin.InsecureSkipVerify,
+		},
+		{
+			Argument: "trusted-ca-file",
+			Default:  "",
+			Usage:    "TLS CA certificate bundle in PEM format",
+			Value:    &plugin.TrustedCAFile,
+		},
+		{
+			Argument: "mtls-key-file",
+			Default:  "",
+			Usage:    "Key file for mutual TLS auth in PEM format",
+			Value:    &plugin.MTLSKeyFile,
+		},
+		{
+			Argument: "mtls-cert-file",
+			Default:  "",
+			Usage:    "Certificate file for mutual TLS auth in PEM format",
+			Value:    &plugin.MTLSCertFile,
+		},
 	}
 )
 
@@ -269,6 +299,10 @@ func checkArgs(event *types.Event) (int, error) {
 		log.Printf("Type: %v\n", plugin.Type)
 		log.Printf("Request Method: %v\n", plugin.Request)
 		log.Printf("Url: %v\n", plugin.Url)
+		log.Printf("Trusted CA File: %v\n", plugin.TrustedCAFile)
+		log.Printf("Skip TLS Verify: %v\n", plugin.InsecureSkipVerify)
+		log.Printf("MTLS Cert File: %v\n", plugin.MTLSCertFile)
+		log.Printf("MTLS Key File: %v\n", plugin.MTLSKeyFile)
 		log.Printf("Headers: %v\n", plugin.Headers)
 		log.Printf("Query: %v\n", plugin.Query)
 		log.Printf("Eval Statements: %v\n", plugin.EvalStatements)
@@ -293,6 +327,28 @@ func checkArgs(event *types.Event) (int, error) {
 			return sensu.CheckStateWarning, fmt.Errorf("--eval-status >= 1 is required")
 		}
 	}
+
+	if len(plugin.TrustedCAFile) > 0 {
+		caCertPool, err := corev2.LoadCACerts(plugin.TrustedCAFile)
+		if err != nil {
+			return sensu.CheckStateWarning, fmt.Errorf("Error loading specified CA file")
+		}
+		tlsConfig.RootCAs = caCertPool
+	}
+	tlsConfig.InsecureSkipVerify = plugin.InsecureSkipVerify
+	tlsConfig.CipherSuites = corev2.DefaultCipherSuites
+
+	if (len(plugin.MTLSKeyFile) > 0 && len(plugin.MTLSCertFile) == 0) || (len(plugin.MTLSCertFile) > 0 && len(plugin.MTLSKeyFile) == 0) {
+		return sensu.CheckStateWarning, fmt.Errorf("mTLS auth requires both --mtls-key-file and --mtls-cert-file")
+	}
+	if len(plugin.MTLSKeyFile) > 0 && len(plugin.MTLSCertFile) > 0 {
+		cert, err := tls.LoadX509KeyPair(plugin.MTLSCertFile, plugin.MTLSKeyFile)
+		if err != nil {
+			return sensu.CheckStateWarning, fmt.Errorf("Failed to load mTLS key pair %s/%s: %v", plugin.MTLSCertFile, plugin.MTLSKeyFile, err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
 	return sensu.CheckStateOK, nil
 }
 
