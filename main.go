@@ -378,8 +378,12 @@ func doQuery(urlString string, requestType string, data io.Reader) ([]byte, erro
 func processResponse(data string, jscript string) (bool, error) {
 	vm := otto.New()
 
-	vm.Set("input", data)
-	vm.Run(`
+	err := vm.Set("input", data)
+	if err != nil {
+		log.Printf("vm.Set error: %v", err)
+		return false, err
+	}
+	err = vm.Run(`
           result = JSON.parse(input)
         `)
 	return_value, err := vm.Run(jscript)
