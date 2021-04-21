@@ -387,7 +387,7 @@ func executeCheck(event *types.Event) (int, error) {
 			}
 		}
 	} else {
-		log.Printf("No eval statements present\nReturning query result:\n%v", response)
+		log.Printf("No eval statements present\nReturning query result:\n%v", string(response))
 		//Do something if there are no eval statement
 	}
 	return sensu.CheckStateOK, nil
