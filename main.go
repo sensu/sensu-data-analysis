@@ -10,7 +10,6 @@ import (
 	"github.com/sensu/sensu-go/types"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -32,6 +31,7 @@ type Config struct {
 	Query              string
 	Type               string
 	Verbose            bool
+	Debug              bool
 	DryRun             bool
 	Scheme             string
 	Host               string
@@ -69,19 +69,30 @@ var (
 				"Content-Type: application/x-www-form-urlencoded",
 			},
 		},
+		"influxdb": ServiceType{
+			Scheme:    "http",
+			Host:      "localhost",
+			Port:      8086,
+			ApiPath:   "query",
+			ApiParams: "db=sensu",
+			Request:   "POST",
+			Headers: []string{
+				"Content-Type: application/x-www-form-urlencoded",
+			},
+		},
 	}
 	//
 	plugin = Config{
 		PluginConfig: sensu.PluginConfig{
 			Name:     "sensu-metric-analysis",
-			Short:    "Check that lets you evaluate JSON returned from REST API endpoints using Javascript conditional expressions",
+			Short:    "The Sensu Data Analysis plugin queries data platforms via HTTP APIs and evaluates JSON responses using Javascript conditional expressions (--eval). JS expressions are evaluated in a \"sandbox\" that is seeded with a single variable called 'result' representing the complete query response in JSON format.",
 			Keyspace: "sensu.io/plugins/sensu-metric-analysis/config",
 		},
 	}
 
 	options = []*sensu.PluginConfigOption{
 		&sensu.PluginConfigOption{
-			Path:      "timeout",
+			Path:      "",
 			Env:       "",
 			Argument:  "timeout",
 			Shorthand: "T",
@@ -90,110 +101,124 @@ var (
 			Value:     &plugin.Timeout,
 		},
 		&sensu.PluginConfigOption{
-			Path:     "eval-status",
+			Path:     "",
 			Env:      "",
-			Argument: "eval-status",
+			Argument: "result-status",
 			Default:  1,
-			Usage:    "Return status if any eval statement condition is not met (eg. a metric exceeds a threshold). Must be >= 1.",
+			Usage:    "Check result status if any eval statement condition is not met (eg. a metric exceeds a threshold). Must be >= 1.",
 			Value:    &plugin.EvalStatus,
 		},
 		&sensu.PluginConfigOption{
-			Path:      "url",
+			Path:      "",
 			Env:       "",
 			Argument:  "url",
 			Shorthand: "U",
 			Default:   "",
-			Usage:     "url to use ex: https://httpbin.org/post",
+			Usage:     "API URL to use (e.g.: https://httpbin.org/post). All other URL component arguments are ignored if provided.",
 			Value:     &plugin.Url,
 		},
 		&sensu.PluginConfigOption{
-			Path:      "request",
+			Path:      "",
 			Env:       "",
 			Argument:  "request",
 			Shorthand: "r",
 			Default:   "",
-			Usage:     "Optional. Default to get, if --query is used changes to post",
+			Usage:     "Default to \"get\" unless --query is set, it defaults to \"post\"",
 			Value:     &plugin.Request,
 		},
 		{
-			Path:      "headers",
+			Path:      "",
 			Env:       "",
 			Argument:  "header",
 			Shorthand: "H",
 			Default:   []string{},
-			Usage:     "Additional header(s) to send in check request",
+			Usage:     "HTTP request header(s). Note: some headers may be preset if --type is provided.",
 			Value:     &plugin.Headers,
 		},
 		&sensu.PluginConfigOption{
-			Path:      "eval-statements",
+			Path:      "",
 			Env:       "",
-			Argument:  "eval-statement",
+			Argument:  "eval",
 			Shorthand: "e",
 			Default:   []string{},
-			Usage: `Optional. Array of Javascript expressions that must return a bool. 
-			The Javascript experssion is evaluated in a "sandbox" and is provided a single variable called 'result' that contains the complete query response in JSON format.  If no eval is required, the check will return the query response as output. Ex: result.test === "value"`,
-			Value: &plugin.EvalStatements,
+			Usage:     "Array of Javascript expressions that must return a bool. If no eval is provided, the check will return the query response as standard output. Ex: result.test === \"value\"",
+			Value:     &plugin.EvalStatements,
 		},
 		&sensu.PluginConfigOption{
-			Path:      "query",
+			Path:      "",
 			Env:       "",
 			Argument:  "query",
 			Shorthand: "q",
 			Default:   "",
-			Usage:     `query data`,
+			Usage:     "Query expression.",
 			Value:     &plugin.Query,
 		},
 		&sensu.PluginConfigOption{
-			Path:      "type",
+			Path:      "",
 			Env:       "",
 			Argument:  "type",
 			Shorthand: "t",
 			Default:   "",
-			Usage:     `Optional (no default is set). Sets --request, --header, --port, --path, and --params based on the backend type (e.g. prometheus, elasticsearch, or influxdb). Setting --type=prometheus`,
+			Usage:     "Optional (no default is set). Sets --request, --header, --port, --path, and --params based on the backend type (e.g. prometheus, elasticsearch, or influxdb). Setting --type=prometheus",
 			Value:     &plugin.Type,
 		},
 		&sensu.PluginConfigOption{
+			Path:      "",
+			Env:       "",
 			Argument:  "verbose",
 			Shorthand: "v",
 			Default:   false,
-			Usage:     `Enable verbose output`,
+			Usage:     "Enable verbose output",
 			Value:     &plugin.Verbose,
 		},
 		&sensu.PluginConfigOption{
+			Path:      "",
+			Env:       "",
+			Argument:  "debug",
+			Shorthand: "",
+			Default:   false,
+			Usage:     "Enable debug output",
+			Value:     &plugin.Verbose,
+		},
+		&sensu.PluginConfigOption{
+			Path:      "",
+			Env:       "",
 			Argument:  "dryrun",
 			Shorthand: "n",
 			Default:   false,
-			Usage:     `Do not execute query, just report configuration. Useful for diagnostic testing`,
+			Usage:     "Do not execute query, just report configuration. Useful for diagnostic testing.",
 			Value:     &plugin.DryRun,
 		},
 		&sensu.PluginConfigOption{
-			Path:     "scheme",
-			Argument: "scheme",
-			Usage:    `service scheme. http or https`,
-			Value:    &plugin.Scheme,
+			Path:      "",
+			Env:       "",
+			Argument:  "scheme",
+			Shorthand: "",
+			Usage:     "HTTP request scheme (http or https).",
+			Value:     &plugin.Scheme,
 		},
 		&sensu.PluginConfigOption{
 			Path:     "host",
 			Argument: "host",
-			Usage:    `service host`,
+			Usage:    "HTTP request hostname (or IP address).",
 			Value:    &plugin.Host,
 		},
 		&sensu.PluginConfigOption{
 			Path:     "port",
 			Argument: "port",
-			Usage:    `service port`,
+			Usage:    "HTTP request port number.",
 			Value:    &plugin.Port,
 		},
 		&sensu.PluginConfigOption{
 			Path:     "path",
 			Argument: "path",
-			Usage:    `service endpoint path`,
+			Usage:    "HTTP request path (e.g. \"api/v1/query\"",
 			Value:    &plugin.ApiPath,
 		},
 		&sensu.PluginConfigOption{
 			Path:     "params",
 			Argument: "params",
-			Usage:    `request params`,
+			Usage:    "HTTP request params (e.g. \"db=sensu\")",
 			Value:    &plugin.ApiParams,
 		},
 		{
@@ -229,8 +254,8 @@ func main() {
 }
 
 func serviceDefaults(service ServiceType) {
-	if plugin.Verbose {
-		log.Printf("Setting Service Defaults\n")
+	if plugin.Debug {
+		fmt.Printf("Setting service defaults for provider: %s\n", plugin.Type)
 	}
 	plugin.Headers = append(plugin.Headers, service.Headers...)
 	if len(plugin.Request) == 0 {
@@ -257,13 +282,13 @@ func finalUrl() (string, error) {
 	newUrl := plugin.Url
 	if len(plugin.Type) > 0 {
 		if service, found := supportedServices[plugin.Type]; found {
-			if plugin.Verbose {
-				log.Printf("Found Supported Service Type: %v\n", plugin.Type)
+			if plugin.Debug {
+				fmt.Printf("Found supported service type: %v\n", plugin.Type)
 			}
 			serviceDefaults(service)
 		} else {
 			if plugin.Verbose {
-				log.Printf("Unknown Service Type: %v\n", plugin.Type)
+				fmt.Printf("Unknown Service Type: %v\n", plugin.Type)
 			}
 		}
 		if len(newUrl) == 0 && len(plugin.Scheme) > 0 && len(plugin.Host) > 0 && plugin.Port > 0 {
@@ -285,8 +310,12 @@ func finalUrl() (string, error) {
 }
 
 func checkArgs(event *types.Event) (int, error) {
+	if plugin.Debug {
+		plugin.Verbose = true
+	}
 	if plugin.DryRun {
 		plugin.Verbose = true
+		plugin.Debug = true
 	}
 	newUrl, err := finalUrl()
 	plugin.Url = newUrl
@@ -295,26 +324,28 @@ func checkArgs(event *types.Event) (int, error) {
 		plugin.Request = `GET`
 	}
 
-	if plugin.Verbose {
-		log.Printf("Type: %v\n", plugin.Type)
-		log.Printf("Request Method: %v\n", plugin.Request)
-		log.Printf("Url: %v\n", plugin.Url)
-		log.Printf("Trusted CA File: %v\n", plugin.TrustedCAFile)
-		log.Printf("Skip TLS Verify: %v\n", plugin.InsecureSkipVerify)
-		log.Printf("MTLS Cert File: %v\n", plugin.MTLSCertFile)
-		log.Printf("MTLS Key File: %v\n", plugin.MTLSKeyFile)
-		log.Printf("Headers: %v\n", plugin.Headers)
-		log.Printf("Query: %v\n", plugin.Query)
-		log.Printf("Eval Statements: %v\n", plugin.EvalStatements)
-		log.Printf("Supporterd Services:\n")
+	if plugin.Debug {
+		fmt.Printf("  Type: %v\n", plugin.Type)
+		fmt.Printf("  Request Method: %v\n", plugin.Request)
+		fmt.Printf("  Url: %v\n", plugin.Url)
+		fmt.Printf("  Trusted CA File: %v\n", plugin.TrustedCAFile)
+		fmt.Printf("  Skip TLS Verify: %v\n", plugin.InsecureSkipVerify)
+		fmt.Printf("  MTLS Cert File: %v\n", plugin.MTLSCertFile)
+		fmt.Printf("  MTLS Key File: %v\n", plugin.MTLSKeyFile)
+		fmt.Printf("  Headers: %v\n", plugin.Headers)
+		fmt.Printf("  Query: %v\n", plugin.Query)
+		fmt.Printf("  Eval Statements: %v\n", plugin.EvalStatements)
+		fmt.Printf("\n")
+		fmt.Printf("Available service types:\n")
 		for name, service := range supportedServices {
-			log.Printf(" %v: %v\n", name, service)
+			fmt.Printf("  %v: %v\n", name, service)
 		}
+		fmt.Printf("\n")
 	}
 
 	if err != nil {
 		if plugin.DryRun {
-			log.Printf("Warning: unexpected error associated with Url: %v", err)
+			fmt.Printf("Warning: unexpected error associated with Url: %v", err)
 		} else {
 			return sensu.CheckStateWarning, err
 		}
@@ -322,7 +353,7 @@ func checkArgs(event *types.Event) (int, error) {
 
 	if plugin.EvalStatus < 1 {
 		if plugin.DryRun {
-			log.Printf("Warning: -eval-status >= 1 is required")
+			fmt.Printf("Warning: -eval-status >= 1 is required")
 		} else {
 			return sensu.CheckStateWarning, fmt.Errorf("--eval-status >= 1 is required")
 		}
@@ -354,29 +385,46 @@ func checkArgs(event *types.Event) (int, error) {
 
 func executeCheck(event *types.Event) (int, error) {
 	if plugin.DryRun {
-		log.Printf(`Dryrun enabled. Query operation aborted`)
+		fmt.Printf(`Dryrun enabled. Query operation aborted`)
 		return sensu.CheckStateOK, nil
 	}
 	response, err := doQuery(plugin.Url, plugin.Request, strings.NewReader(plugin.Query))
-	log.Printf("http response: %v\n", string(response))
+	if plugin.Debug {
+		fmt.Printf("http response: %v\n", string(response))
+	}
 	if err != nil {
-		log.Printf("Error attempting query http request: %v", err)
+		fmt.Printf("Error attempting query http request: %v\n", err)
 		return sensu.CheckStateCritical, err
 	}
 	if len(plugin.EvalStatements) > 0 {
 		for _, eval := range plugin.EvalStatements {
 			result, err := processResponse(string(response), eval)
-			log.Printf("eval result: %v\n", result)
+			if plugin.Debug {
+				fmt.Printf("Eval result: %v (%s)\n", result, eval)
+			}
 			if err != nil {
-				log.Printf("Error attempting to evaluate http response: %v", err)
+				fmt.Printf("Error attempting to evaluate http response: %v\n", err)
 				return sensu.CheckStateCritical, err
 			}
 			if !result {
+				fmt.Printf("An eval condition was not met: \"%s\" (%v)\n", eval, result)
+				if plugin.Verbose {
+					fmt.Printf("\n%s\n", string(response))
+				}
 				return sensu.CheckStateWarning, nil
+			} else {
+				fmt.Printf("All eval condition were met.\n")
+				if plugin.Verbose {
+					fmt.Printf("\n%s\n", string(response))
+				}
 			}
 		}
 	} else {
-		log.Printf("No eval statements present\nReturning query result:\n%v", response)
+		if plugin.Verbose {
+			fmt.Printf("No eval statements present. Returning query result: %v\n", string(response))
+		} else {
+			fmt.Printf("%v\n", string(response))
+		}
 		//Do something if there are no eval statement
 	}
 	return sensu.CheckStateOK, nil
@@ -437,24 +485,24 @@ func processResponse(data string, jscript string) (bool, error) {
 
 	err := vm.Set("input", data)
 	if err != nil {
-		log.Printf("vm.Set error: %v", err)
+		fmt.Printf("vm.Set error: %v", err)
 		return false, err
 	}
 	_, err = vm.Run(`
           result = JSON.parse(input)
         `)
 	if err != nil {
-		log.Printf("vm.Run error: %v", err)
+		fmt.Printf("vm.Run error: %v", err)
 		return false, err
 	}
 	return_value, err := vm.Run(jscript)
 	if err != nil {
-		log.Printf("vm.Run error: %v", err)
+		fmt.Printf("vm.Run error: %v", err)
 		return false, err
 	} else {
 		if return_bool, err := return_value.ToBoolean(); err == nil {
 			if err != nil {
-				log.Printf("return_value.ToBoolean error: %v\n", err)
+				fmt.Printf("return_value.ToBoolean error: %v\n", err)
 				return return_bool, err
 			} else {
 				return return_bool, err
