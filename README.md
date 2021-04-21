@@ -103,7 +103,7 @@ Please see the [InfluxDB API "Query data with InfluxQL" documentation](https://d
 > - Wavefront
 >
 > In the interim, the `sensu-data-analysis` plugin should "just work" ™️ with most or all of these providers, given the correct parameters (e.g. `--url`, `--header`s, etc).
-> Please let us know of any data platforms you'd like to see built-in support for by [opening an issue](/issues) (or commenting with a +1 an an existing issue).
+> Please let us know of any data platforms you'd like to see built-in support for by [opening an issue](https://github.com/sensu/sensu-data-analysis/issues/new) (or commenting with a +1 an an [existing issue](https://github.com/sensu/sensu-data-analysis/issues)).
 
 ## Configuration
 
