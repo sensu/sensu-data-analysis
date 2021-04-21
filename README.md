@@ -136,7 +136,7 @@ spec:
     --eval 'result.results[0].series[0].values[0][1] < 0.001'
     --result-status 1
   runtime_assets:
-  - sensu/sensu-data-analysis:0.1.0
+  - sensu/sensu-data-analysis:0.2.0
   publish: true
   subscriptions:
   - influxdb

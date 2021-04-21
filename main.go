@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/robertkrimen/otto"
-	"github.com/sensu-community/sensu-plugin-sdk/sensu"
-	"github.com/sensu/sensu-go/types"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/robertkrimen/otto"
+	"github.com/sensu-community/sensu-plugin-sdk/sensu"
+	"github.com/sensu/sensu-go/types"
 
 	corev2 "github.com/sensu/sensu-go/api/core/v2"
 )
@@ -178,7 +179,7 @@ var (
 			Shorthand: "",
 			Default:   false,
 			Usage:     "Enable debug output",
-			Value:     &plugin.Verbose,
+			Value:     &plugin.Debug,
 		},
 		&sensu.PluginConfigOption{
 			Path:      "",
@@ -323,6 +324,7 @@ func checkArgs(event *types.Event) (int, error) {
 	if len(plugin.Request) == 0 {
 		plugin.Request = `GET`
 	}
+	plugin.Request = strings.ToUpper(plugin.Request)
 
 	if plugin.Debug {
 		fmt.Printf("  Type: %v\n", plugin.Type)
@@ -419,7 +421,7 @@ func executeCheck(event *types.Event) (int, error) {
 			}
 		}
 		// If all eval statements result to true
-		fmt.Printf("All eval condition were met.\n")
+		fmt.Printf("All eval conditions were met.\n")
 		if plugin.Verbose {
 			fmt.Printf("\n%s\n", string(response))
 		}
