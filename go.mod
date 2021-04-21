@@ -1,4 +1,4 @@
-module github.com/sensu/sensu-metric-analysis
+module github.com/sensu/sensu-data-analysis
 
 go 1.14
 
