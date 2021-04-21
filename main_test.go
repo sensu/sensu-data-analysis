@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"github.com/sensu-community/sensu-plugin-sdk/sensu"
-	//"log"
 	"strings"
 	"testing"
 )
@@ -133,6 +133,44 @@ func TestServiceUrl(t *testing.T) {
 	}
 
 }
+func TestProcess(t *testing.T) {
+	tests := []struct {
+		name           string
+		json_data      string
+		jscript        string
+		expect_error   bool
+		expected_value bool
+	}{
+		{
+			name:           "I could have bought a Lambo",
+			json_data:      `{"name":"Frank", "car":"Subaru CrossTrek"}`,
+			jscript:        `result.name === "Frank"`,
+			expect_error:   false,
+			expected_value: true,
+		},
+		{
+			name:           "bad object path",
+			json_data:      `{"name":"Frank", "car":"Subaru CrossTrek"}`,
+			jscript:        `result.undefined === "Frank"`,
+			expect_error:   true,
+			expected_value: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := processResponse(tt.json_data, tt.jscript)
+			if !tt.expect_error && err != nil {
+				t.Errorf("processResponse() json_data: %v, jscript: %v, err: %v\n", tt.json_data, tt.jscript, err)
+				return
+			}
+			if result != tt.expected_value {
+				t.Errorf("processResponse() json_data: %v, jscript: %v, err: %v\n", tt.json_data, tt.jscript, err)
+				return
+			}
+		})
+	}
+
+}
 func TestQuery(t *testing.T) {
 	plugin.Headers = append(plugin.Headers,
 		`First-Header: header value`,
@@ -213,41 +251,61 @@ func TestQuery(t *testing.T) {
 
 }
 
-func TestProcess(t *testing.T) {
-	tests := []struct {
-		name           string
-		json_data      string
-		jscript        string
-		expect_error   bool
-		expected_value bool
-	}{
-		{
-			name:           "I could have bought a Lambo",
-			json_data:      `{"name":"Frank", "car":"Subaru CrossTrek"}`,
-			jscript:        `result.name === "Frank"`,
-			expect_error:   false,
-			expected_value: true,
-		},
-		{
-			name:           "bad object path",
-			json_data:      `{"name":"Frank", "car":"Subaru CrossTrek"}`,
-			jscript:        `result.undefined === "Frank"`,
-			expect_error:   true,
-			expected_value: false,
+func TestMultipleEval(t *testing.T) {
+	plugin = Config{
+		PluginConfig: sensu.PluginConfig{
+			Name:  "test",
+			Short: "test",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := processResponse(tt.json_data, tt.jscript)
-			if !tt.expect_error && err != nil {
-				t.Errorf("processResponse() json_data: %v, jscript: %v, err: %v\n", tt.json_data, tt.jscript, err)
-				return
-			}
-			if result != tt.expected_value {
-				t.Errorf("processResponse() json_data: %v, jscript: %v, err: %v\n", tt.json_data, tt.jscript, err)
-				return
-			}
-		})
+	plugin.Url = `http://httpbin.org/post`
+	plugin.Request = `POST`
+	plugin.Debug = false
+	plugin.Verbose = false
+	t.Run("test no eval", func(t *testing.T) {
+		status, err := executeCheck(nil)
+		if status == 0 {
+			t.Errorf("executeCheck(nil) status: %v err: %v", status, err)
+			return
+		}
+	})
+	statements := [](string){
+		"result.url",
 	}
+	plugin.EvalStatements = statements
+	fmt.Printf("testing eval statements: %v\n", statements)
+	t.Run("test 1 true eval", func(t *testing.T) {
+		status, err := executeCheck(nil)
+		if status != 0 {
+			t.Errorf("executeCheck(nil) status: %v err: %v", status, err)
+			return
+		}
+	})
+	statements = [](string){
+		"result.url",
+		"result.json",
+	}
+	plugin.EvalStatements = statements
+	fmt.Printf("testing eval statements: %v\n", statements)
+	t.Run("test 1 true 1 false eval", func(t *testing.T) {
+		status, err := executeCheck(nil)
+		if status == 0 {
+			t.Errorf("executeCheck(nil) status: %v err: %v", status, err)
+			return
+		}
+	})
+	statements = [](string){
+		"result.url",
+		"result.origin",
+	}
+	plugin.EvalStatements = statements
+	fmt.Printf("testing eval statements: %v\n", statements)
+	t.Run("test 2 true eval", func(t *testing.T) {
+		status, err := executeCheck(nil)
+		if status != 0 {
+			t.Errorf("executeCheck(nil) status: %v err: %v", status, err)
+			return
+		}
+	})
 
 }
