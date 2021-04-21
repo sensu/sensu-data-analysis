@@ -64,33 +64,33 @@ Use "sensu-data-analysis [command] --help" for more information about a command.
 The Sensu Data Analysis plugin works with any restful HTTP API that returns JSON.
 For convenience, templates are provided for the following data providers (as set via the `--type` flag).
 
-- **`prometheus`**
+**`prometheus`**
 
-  Setting `--type=prometheus` provides the following defaults:
+Setting `--type=prometheus` provides the following defaults:
 
-  - `--scheme="http"`
-  - `--host="localhost"`
-  - `--port="9090"`
-  - `--path="api/v1/query"`
-  - `--params="query=up"`
-  - `--request="POST"`
-  - `--header="Content-Type: application/x-www-form-urlencoded"`
+- `--scheme="http"`
+- `--host="localhost"`
+- `--port="9090"`
+- `--path="api/v1/query"`
+- `--params="query=up"`
+- `--request="POST"`
+- `--header="Content-Type: application/x-www-form-urlencoded"`
 
-  Please see the [Prometheus HTTP API "Expression queries" documentation](https://prometheus.io/docs/prometheus/latest/querying/api/#expression-queries) for more information.
+Please see the [Prometheus HTTP API "Expression queries" documentation](https://prometheus.io/docs/prometheus/latest/querying/api/#expression-queries) for more information.
 
-- **`influxdb` (InfluxQL)**
+**`influxdb` (InfluxQL)**
 
-  Setting `--type=influxdb` provides the following defaults:
+Setting `--type=influxdb` provides the following defaults:
 
-  - `--scheme="http"`
-  - `--host="localhost"`
-  - `--port="8086"`
-  - `--path="query"`
-  - `--params="db=sensu"`
-  - `--request="POST"`
-  - `--header="Content-Type: application/x-www-form-urlencoded"`
+- `--scheme="http"`
+- `--host="localhost"`
+- `--port="8086"`
+- `--path="query"`
+- `--params="db=sensu"`
+- `--request="POST"`
+- `--header="Content-Type: application/x-www-form-urlencoded"`
 
-  Please see the [InfluxDB API "Query data with InfluxQL" documentation](https://docs.influxdata.com/influxdb/v1.8/guides/query_data/#query-data-with-influxql) for more information.
+Please see the [InfluxDB API "Query data with InfluxQL" documentation](https://docs.influxdata.com/influxdb/v1.8/guides/query_data/#query-data-with-influxql) for more information.
 
 > **NOTE:** support for additional built-in data providers is coming soon, including:
 >
