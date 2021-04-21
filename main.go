@@ -397,27 +397,31 @@ func executeCheck(event *types.Event) (int, error) {
 		return sensu.CheckStateCritical, err
 	}
 	if len(plugin.EvalStatements) > 0 {
+		// Loop over eval statements
+		// return on first error or first false eval statement
 		for _, eval := range plugin.EvalStatements {
 			result, err := processResponse(string(response), eval)
 			if plugin.Debug {
 				fmt.Printf("Eval result: %v (%s)\n", result, eval)
 			}
+			//return if eval statement throws error
 			if err != nil {
 				fmt.Printf("Error attempting to evaluate http response: %v\n", err)
 				return sensu.CheckStateCritical, err
 			}
+			//return if eval statement result is false
 			if !result {
 				fmt.Printf("An eval condition was not met: \"%s\" (%v)\n", eval, result)
 				if plugin.Verbose {
 					fmt.Printf("\n%s\n", string(response))
 				}
 				return sensu.CheckStateWarning, nil
-			} else {
-				fmt.Printf("All eval condition were met.\n")
-				if plugin.Verbose {
-					fmt.Printf("\n%s\n", string(response))
-				}
 			}
+		}
+		// If all eval statements result to true
+		fmt.Printf("All eval condition were met.\n")
+		if plugin.Verbose {
+			fmt.Printf("\n%s\n", string(response))
 		}
 	} else {
 		if plugin.Verbose {
