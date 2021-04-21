@@ -69,6 +69,17 @@ var (
 				"Content-Type: application/x-www-form-urlencoded",
 			},
 		},
+		"influxdb": ServiceType{
+			Scheme:    "http",
+			Host:      "localhost",
+			Port:      8086,
+			ApiPath:   "query",
+			ApiParams: "db=sensu",
+			Request:   "POST",
+			Headers: []string{
+				"Content-Type: application/x-www-form-urlencoded",
+			},
+		},
 	}
 	//
 	plugin = Config{
