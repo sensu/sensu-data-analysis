@@ -269,7 +269,7 @@ func TestMultipleEval(t *testing.T) {
 	}
 	t.Run("test no eval", func(t *testing.T) {
 		status, err := executeCheck(nil)
-		if status != 1 {
+		if status != 0 {
 			t.Errorf("executeCheck(nil) status: %v err: %v", status, err)
 			return
 		}

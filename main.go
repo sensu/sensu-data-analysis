@@ -429,7 +429,7 @@ func executeCheck(event *types.Event) (int, error) {
 		} else {
 			fmt.Printf("%v\n", string(response))
 		}
-		return sensu.CheckStateWarning, nil
+		return sensu.CheckStateOK, nil
 	}
 	return sensu.CheckStateOK, nil
 }
