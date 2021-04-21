@@ -80,6 +80,8 @@ For convenience, templates are provided for the following data providers (as set
 
 - **`influxdb` (InfluxQL)**
 
+  Setting `--type=influxdb` provides the following defaults:
+
   - `--scheme="http"`
   - `--host="localhost"`
   - `--port="8086"`
