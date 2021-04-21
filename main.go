@@ -412,6 +412,11 @@ func executeCheck(event *types.Event) (int, error) {
 					fmt.Printf("\n%s\n", string(response))
 				}
 				return sensu.CheckStateWarning, nil
+			} else {
+				fmt.Printf("All eval condition were met.\n")
+				if plugin.Verbose {
+					fmt.Printf("\n%s\n", string(response))
+				}
 			}
 		}
 	} else {

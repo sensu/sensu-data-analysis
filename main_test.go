@@ -64,7 +64,7 @@ func TestServiceUrl(t *testing.T) {
 			host_override_url:    `http://other.host.com:9090/api/v1/query?query=up`,
 		},
 		{
-			service_type:         `unknown service`,
+			service_type:         `unknown`,
 			expected_default_url: `http://localhost:9090/api/v1/query?query=up`,
 			expect_error:         true,
 			override_url:         `https://example.com:80/path/to/use?param1=val1,param2=val2`,
