@@ -252,18 +252,21 @@ func TestQuery(t *testing.T) {
 }
 
 func TestMultipleEval(t *testing.T) {
+	evalStatus := 10
 	plugin = Config{
 		PluginConfig: sensu.PluginConfig{
 			Name:  "test",
 			Short: "test",
 		},
 	}
-	evalStatus := 10
 	plugin.Url = `http://httpbin.org/post`
 	plugin.Request = `POST`
 	plugin.Debug = false
 	plugin.Verbose = false
 	plugin.EvalStatus = evalStatus
+	statements := [](string){
+		"result.url",
+	}
 	t.Run("test no eval", func(t *testing.T) {
 		status, err := executeCheck(nil)
 		if status != 1 {
@@ -271,9 +274,6 @@ func TestMultipleEval(t *testing.T) {
 			return
 		}
 	})
-	statements := [](string){
-		"result.url",
-	}
 	plugin.EvalStatements = statements
 	fmt.Printf("testing eval statements: %v\n", statements)
 	t.Run("test 1 true eval", func(t *testing.T) {
@@ -284,12 +284,24 @@ func TestMultipleEval(t *testing.T) {
 		}
 	})
 	statements = [](string){
+		"result.json",
+	}
+	plugin.EvalStatements = statements
+	fmt.Printf("testing eval statements: %v\n", plugin.EvalStatements)
+	t.Run("test 1 false eval with default status", func(t *testing.T) {
+		status, err := executeCheck(nil)
+		if status != evalStatus {
+			t.Errorf("executeCheck(nil) status: %v err: %v", status, err)
+			return
+		}
+	})
+	statements = [](string){
 		"result.url",
 		"result.json",
 	}
 	plugin.EvalStatements = statements
 	fmt.Printf("testing eval statements: %v\n", statements)
-	t.Run("test 1 true 1 false eval", func(t *testing.T) {
+	t.Run("test 1 true 1 false eval with eval status 10", func(t *testing.T) {
 		status, err := executeCheck(nil)
 		if status != evalStatus {
 			t.Errorf("executeCheck(nil) status: %v err: %v", status, err)
@@ -309,5 +321,4 @@ func TestMultipleEval(t *testing.T) {
 			return
 		}
 	})
-
 }
