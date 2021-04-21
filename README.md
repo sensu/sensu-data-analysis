@@ -161,12 +161,12 @@ For more information about contributing to this plugin, see [Contributing][1].
 And don't forget to [register your contribution](https://sensu.io/register-your-contribution) – no matter how small – to get FREE SWAG!
 
 [1]: https://github.com/sensu/sensu-go/blob/master/CONTRIBUTING.md
-[2]: https://github.com/sensu-community/sensu-plugin-sdk
+[2]: https://github.com/sensu/sensu-plugin-sdk
 [3]: https://github.com/sensu-plugins/community/blob/master/PLUGIN_STYLEGUIDE.md
-[4]: https://github.com/sensu-community/check-plugin-template/blob/master/.github/workflows/release.yml
-[5]: https://github.com/sensu-community/check-plugin-template/actions
+[4]: https://github.com/sensu/check-plugin-template/blob/master/.github/workflows/release.yml
+[5]: https://github.com/sensu/check-plugin-template/actions
 [6]: https://docs.sensu.io/sensu-go/latest/reference/checks/
-[7]: https://github.com/sensu-community/check-plugin-template/blob/master/main.go
+[7]: https://github.com/sensu/check-plugin-template/blob/master/main.go
 [8]: https://bonsai.sensu.io/
-[9]: https://github.com/sensu-community/sensu-plugin-tool
+[9]: https://github.com/sensu/sensu-plugin-tool
 [10]: https://docs.sensu.io/sensu-go/latest/reference/assets/
