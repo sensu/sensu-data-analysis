@@ -99,6 +99,9 @@ For convenience, templates are provided for the following data providers (as set
 > - Cloudwatch
 > - Graphite
 > - Wavefront
+>
+> In the interim, the `sensu-data-analysis` plugin should "just work" ™️ with most or all of these providers, given the correct parameters (e.g. `--url`, `--header`s, etc).
+> Please let us know of any data platforms you'd like to see built-in support for by [opening an issue](/issues) (or commenting with a +1 an an existing issue).
 
 ## Configuration
 
@@ -155,6 +158,7 @@ go build
 ## Contributing
 
 For more information about contributing to this plugin, see [Contributing][1].
+And don't forget to [register your contribution](https://sensu.io/register-your-contribution) – no matter how small – to get FREE SWAG!
 
 [1]: https://github.com/sensu/sensu-go/blob/master/CONTRIBUTING.md
 [2]: https://github.com/sensu-community/sensu-plugin-sdk
