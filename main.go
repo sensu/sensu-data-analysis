@@ -415,7 +415,7 @@ func executeCheck(event *types.Event) (int, error) {
 				if plugin.Verbose {
 					fmt.Printf("\n%s\n", string(response))
 				}
-				return sensu.CheckStateWarning, nil
+				return plugin.EvalStatus, nil
 			}
 		}
 		// If all eval statements result to true

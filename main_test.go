@@ -258,13 +258,15 @@ func TestMultipleEval(t *testing.T) {
 			Short: "test",
 		},
 	}
+	evalStatus := 10
 	plugin.Url = `http://httpbin.org/post`
 	plugin.Request = `POST`
 	plugin.Debug = false
 	plugin.Verbose = false
+	plugin.EvalStatus = evalStatus
 	t.Run("test no eval", func(t *testing.T) {
 		status, err := executeCheck(nil)
-		if status == 0 {
+		if status != 1 {
 			t.Errorf("executeCheck(nil) status: %v err: %v", status, err)
 			return
 		}
@@ -289,7 +291,7 @@ func TestMultipleEval(t *testing.T) {
 	fmt.Printf("testing eval statements: %v\n", statements)
 	t.Run("test 1 true 1 false eval", func(t *testing.T) {
 		status, err := executeCheck(nil)
-		if status == 0 {
+		if status != evalStatus {
 			t.Errorf("executeCheck(nil) status: %v err: %v", status, err)
 			return
 		}
