@@ -141,8 +141,8 @@ var (
 			Argument:  "eval-statement",
 			Shorthand: "e",
 			Default:   []string{},
-			Usage: `Optional. Array of Javascript expressions that must return a bool. The Javascript experssion is evaluated in a "sandbox" and is provided a single variable called 'result' that contains the complete query response in JSON format.  If no eval is required, the check will return the query response as output. Ex: result.test === "value"`,
-			Value: &plugin.EvalStatements,
+			Usage:     `Optional. Array of Javascript expressions that must return a bool. The Javascript experssion is evaluated in a "sandbox" and is provided a single variable called 'result' that contains the complete query response in JSON format.  If no eval is required, the check will return the query response as output. Ex: result.test === "value"`,
+			Value:     &plugin.EvalStatements,
 		},
 		&sensu.PluginConfigOption{
 			Path:      "query",
